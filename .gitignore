@@ -1,0 +1,42 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+ENV/
+
+# Testing and code quality
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Datasets (managed by DVC later)
+data/raw/*.csv
+data/processed/*.csv
+
+# MLflow and generated artifacts
+mlruns/
+mlartifacts/
+artifacts/
+models/
+
+# Logs and temporary files
+*.log
+*.tmp
+.ipynb_checkpoints/
+
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
