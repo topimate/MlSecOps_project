@@ -1,8 +1,8 @@
 from predictive_maintenance.api.schemas import (
+    MockTrainingResponse,
     PredictionRequest,
     PredictionResponse,
     TrainingRequest,
-    TrainingResponse,
 )
 
 
@@ -16,10 +16,8 @@ def mock_predict(data: PredictionRequest) -> PredictionResponse:
     )
 
 
-def mock_train(data: TrainingRequest) -> TrainingResponse:
-    """return a fixed training response for testing purposes."""
-    return TrainingResponse(
+def mock_train(data: TrainingRequest) -> MockTrainingResponse:
+    """Return a simulated training result without creating a model."""
+    return MockTrainingResponse(
         status="mock_completed",
-        training_run_id=None,
-        mode="mock",
     )

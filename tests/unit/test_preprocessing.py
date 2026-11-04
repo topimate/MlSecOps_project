@@ -299,4 +299,4 @@ def test_imputer_handles_missing_values(sample_features: pd.DataFrame) -> None:
     transformed = imputer.fit_transform(engineered)
     assert isinstance(transformed, pd.DataFrame)
     assert transformed.shape == (6, 7)
-    assert not transformed.isna().any().any()
+    assert not transformed.isna().to_numpy().any()

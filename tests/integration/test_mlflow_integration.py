@@ -1,6 +1,9 @@
 
 """Integration tests for MLflow model tracking and loading."""
 
+import json
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import mlflow
@@ -17,6 +20,15 @@ from src.predictive_maintenance.models.mlflow_tracking import (
     run_training_experiment,
 )
 from src.predictive_maintenance.models.training import ModelType
+
+
+from predictive_maintenance.monitoring.prediction_export import (
+    ARTIFACT_PATH,
+    EXPERIMENT_NAME as PREDICTION_EXPERIMENT_NAME,
+    ExportSelection,
+    export_prediction_events,
+)
+from predictive_maintenance.monitoring.prediction_store import save_prediction_event
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -156,3 +168,51 @@ def test_mlflow_tracking_and_model_loading(
 
     finally:
         mlflow.set_tracking_uri(previous_uri)
+
+
+def test_prediction_export_artifacts_are_retrievable(tmp_path: Path) -> None:
+    """Export real SQLite events and download their JSON artifacts from MLflow."""
+    database = tmp_path / "prediction-events.db"
+    tracking_uri = f"sqlite:///{(tmp_path / 'prediction-mlflow.db').as_posix()}"
+    previous_uri = mlflow.get_tracking_uri()
+    client = mlflow.MlflowClient(tracking_uri=tracking_uri)
+    experiment_id = client.create_experiment(
+        PREDICTION_EXPERIMENT_NAME,
+        artifact_location=(tmp_path / "prediction-artifacts").as_uri(),
+    )
+    event: dict[str, object] = {
+        "timestamp": "2026-11-04T00:00:00+00:00",
+        "model_uri": "models:/m-integration-model",
+        "model_version": "m-integration-model",
+        "inputs": {"type": "L", "torque_nm": 40.0},
+        "status": "success",
+        "prediction": 0,
+        "probability": 0.1,
+    }
+    save_prediction_event("integration-request", event, database)
+
+    result = export_prediction_events(database, tracking_uri=tracking_uri)
+
+    assert result is not None
+    run_id = str(result["run_id"])
+    run = client.get_run(run_id)
+    assert run.info.status == "FINISHED"
+    assert run.data.tags["operation"] == "predict"
+    assert run.data.tags["batch_id"] == result["batch_id"]
+    assert run.data.tags["model_uri"] == "models:/m-integration-model"
+    download_path = Path(client.download_artifacts(run_id, ARTIFACT_PATH))
+    payload = json.loads(download_path.read_text(encoding="utf-8"))
+    assert payload["event_count"] == 1
+    assert payload["events"] == [{**event, "request_id": "integration-request"}]
+    assert payload["batch_id"] == result["batch_id"]
+    assert export_prediction_events(database, tracking_uri=tracking_uri) is None
+    assert len(client.search_runs([experiment_id])) == 1
+
+    historical = export_prediction_events(database, tracking_uri, ExportSelection(include_exported=True))
+    assert historical is not None
+    assert historical["run_id"] != run_id
+    repeated = Path(client.download_artifacts(str(historical["run_id"]), ARTIFACT_PATH))
+    assert json.loads(repeated.read_text(encoding="utf-8"))["events"] == payload["events"]
+    with closing(sqlite3.connect(database)) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM prediction_events").fetchone()[0] == 1
+    assert mlflow.get_tracking_uri() == previous_uri

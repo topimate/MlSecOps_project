@@ -1,6 +1,7 @@
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+from predictive_maintenance.models.training import ModelType
 
 PREDICTION_EXAMPLE = {
     "type": "L",
@@ -13,6 +14,7 @@ PREDICTION_EXAMPLE = {
 
 TRAINING_EXAMPLE = {
     "dataset_id": "default",
+    "model_type": "gradient_boosting",
     "random_state": 42,
 }
 
@@ -48,10 +50,20 @@ class TrainingRequest(BaseModel):
     )
 
     dataset_id: Literal["default"] = "default"
-    random_state: int = Field(default=42, ge=0)
+    model_type: ModelType = "gradient_boosting"
+    random_state: Literal[42] = 42
 
 
 class TrainingResponse(BaseModel):
+    status: Literal["completed"]
+    training_run_id: str
+    model_type: ModelType
+    model_uri: str
+    metrics: dict[str, float]
+    mode: Literal["real"]
+
+
+class MockTrainingResponse(BaseModel):
     status: Literal["mock_completed"]
-    training_run_id: str | None = None
-    mode: Literal["mock", "real"]
+    training_run_id: None = None
+    mode: Literal["mock"] = "mock"
