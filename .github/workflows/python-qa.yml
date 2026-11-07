@@ -33,9 +33,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          python -m pip install pytest coverage flake8 pyright
+          python -m pip install "dvc[s3]==3.67.1" pytest coverage flake8 pyright
           python -m pip check
           python -c "import mlflow, xgboost, sklearn, pandas, numpy; print('ML dependencies OK')"
+
+      - name: Download versioned dataset from DagsHub
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_TOKEN }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "::error::DAGSHUB_TOKEN secret is missing or unavailable."
+            exit 1
+          fi
+          dvc pull data/raw.dvc -r dagshub
+          test -f data/raw/predictive_maintenance_5000.csv
 
       # Mandatory unit tests
       - name: Run unit tests with coverage
@@ -55,24 +67,19 @@ jobs:
       # Dataset-dependent integration tests
       # The MLflow test is excluded because it runs above.
       - name: Run dataset integration tests
-        if: hashFiles('data/raw/predictive_maintenance_5000.csv') != ''
         env:
           PYTHONPATH: src
         run: |
           python -m coverage run --append -m pytest tests/integration/ --ignore=tests/integration/test_mlflow_integration.py -v
 
-      # Temporary safeguard until DVC downloads the dataset in CI
-      - name: Report missing integration dataset
-        if: hashFiles('data/raw/predictive_maintenance_5000.csv') == ''
-        run: |
-          echo "::warning::CSV-dependent integration tests skipped: dataset unavailable."
-          echo "### Dataset integration tests: NOT RUN" >> "$GITHUB_STEP_SUMMARY"
-          echo "MLflow integration tests ran separately. DVC setup is pending." >> "$GITHUB_STEP_SUMMARY"
-
       # Mandatory source code coverage gate
       - name: Check source coverage
         run: |
           python -m coverage report -m --include="src/*" --fail-under=95
+
+      - name: Check combined source and test coverage
+        run: |
+          python -m coverage report -m --include="src/*,tests/*" --fail-under=95
 
       - name: Run Flake8
         run: |

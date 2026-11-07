@@ -16,7 +16,7 @@ pyflakes==4.1.0
 Pygments==2.21.0
 pyright==1.1.414
 pytest==9.2.0
-python-dateutil==4.0.0
+python-dateutil==2.9.0.post0
 scikit-learn==1.9.1
 scipy==1.17.1
 threadpoolctl==3.7.0

@@ -21,22 +21,96 @@ MlSecOps_project/
 
 ## Data versioning with DVC
 
-The project uses DVC to version datasets separately from the source code. GitHub stores the source code, configuration files, documentation, and DVC metadata, while the actual dataset files are managed by DVC.
+GitHub stores source code, configuration, documentation, tests, and DVC
+metadata. The raw dataset is stored in the shared DagsHub DVC remote.
 
-### Storage strategy
+- Storage project: https://dagshub.com/bsumicz/MlSecOps_project
+- DVC remote name: `dagshub` (default)
+- Tracked metadata: `data/raw.dvc`
+- Dataset path: `data/raw/predictive_maintenance_5000.csv`
 
-- **GitHub:** source code, tests, configuration files, documentation, and DVC metadata.
-- **DVC remote:** raw and processed datasets.
-- **Local workspace:** dataset files restored by DVC.
+Do not commit raw dataset files or credentials to Git.
+Processed-data versioning will be added when processed datasets are persisted.
 
-Actual dataset files must not be committed directly to Git or uploaded to GitHub.
+### Local setup (PowerShell)
 
-### Raw data
+Run commands from the repository root with the project virtual environment
+activated. The CI environment uses Python 3.11.
 
-The raw dataset is restored to:
+Install the project dependencies and development tools:
 
-```text
-data/raw/
+```powershell
+python -m pip install -r requirements.txt
+python -m pip install "dvc[s3]==3.67.1" "pre-commit==4.7.0"
+```
+
+Each team member should create a DagsHub account and obtain access to the
+storage project. Use your own DagsHub access token.
+
+Enter the token in the Password field of the credential dialog:
+
+```powershell
+$dagshubCredential = Get-Credential -UserName "token" -Message "Enter your DagsHub token in the Password field"
+```
+
+After confirming the dialog, configure local authentication:
+
+```powershell
+dvc remote modify --local dagshub access_key_id ($dagshubCredential.GetNetworkCredential().Password)
+dvc remote modify --local dagshub secret_access_key ($dagshubCredential.GetNetworkCredential().Password)
+Remove-Variable dagshubCredential
+```
+
+Credentials are stored in the Git-ignored `.dvc/config.local` file.
+Never commit this file or share your token.
+
+Download the dataset version referenced by the current Git checkout:
+
+```powershell
+dvc pull -r dagshub
+dvc status
+```
+
+### Updating tracked data
+
+After intentionally changing the raw dataset:
+
+```powershell
+dvc add data/raw
+dvc push -r dagshub
+git diff -- data/raw.dvc
+```
+
+Review and commit the updated DVC metadata. Upload the corresponding data
+objects before pushing the Git commit.
+
+### CI data access
+
+GitHub Actions installs DVC with S3 support and downloads the dataset before
+running tests. Authentication uses the `DAGSHUB_TOKEN` repository secret.
+
+Missing credentials, failed downloads, or a missing expected CSV fail the
+workflow. Dataset-dependent integration tests are not conditionally skipped.
+
+## Pre-commit checks
+
+Install the Git hook separately in each local clone:
+
+```powershell
+python -m pre_commit install
+```
+
+Run all checks manually:
+
+```powershell
+python -m pre_commit run --all-files
+```
+
+Checks cover trailing whitespace, file endings, YAML syntax, merge conflict
+markers, large added files, and Flake8 using the existing `.flake8` rules.
+
+If a hook modifies files, review the changes, stage the corrected files,
+and retry the commit. Full tests and coverage remain separate checks.
 
 ## Running the API locally
 
