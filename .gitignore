@@ -41,3 +41,6 @@ artifacts/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Generated monitoring reports
+/reports/

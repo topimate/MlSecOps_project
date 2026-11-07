@@ -178,3 +178,8 @@ to call the application directly.
 
 For request fields, response formats, defaults, and validation rules,
 see the [API contract](docs/api_contract.md).
+
+## Monitoring
+
+For Evidently report generation, drift rules, outputs, and validation,
+see the [monitoring documentation](docs/monitoring.md).

@@ -72,7 +72,7 @@ def _validate_numeric_columns(df: pd.DataFrame) -> None:
 
         values = df[column].dropna()
 
-        if column in INTEGER_COLUMNS and not bool((values % 1 == 0).all()):
+        if column in INTEGER_COLUMNS and not bool(values.mod(1).eq(0).all()):
             raise ValueError(f"Column '{column}' must contain integers.")
 
 

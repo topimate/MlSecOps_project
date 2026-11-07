@@ -61,7 +61,7 @@ def test_end_to_end_preprocessing(prepared_data) -> None:
     for name, (features, expected_rows) in expected_sizes.items():
         assert isinstance(features, pd.DataFrame)
         assert features.shape == (expected_rows, 9), name
-        assert not features.isna().any().any(), name
+        assert not features.isna().to_numpy().any(), name
         assert features.columns.equals(X_train.columns), name
 
     assert "temperature_difference_k" in X_train.columns
